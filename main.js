@@ -1,10 +1,9 @@
 (async () => {
   const fetch = (await import('node-fetch')).default;
   const fs = require('fs').promises;
-  const { HttpsProxyAgent } = require('https-proxy-agent');
-  const path = require('path'); 
+  const path = require('path');
   const readline = require('readline');
-  const crypto = require('crypto'); 
+  const crypto = require('crypto');
 
   const rl = readline.createInterface({
       input: process.stdin,
@@ -29,14 +28,12 @@
 
       const browserIdFilePath = path.join(__dirname, 'browser_ids.json');
 
-      async function coday(url, method, payloadData = null, proxy) {
+      async function coday(url, method, payloadData = null) {
           try {
-              const agent = new HttpsProxyAgent(proxy);
               let response;
               const options = {
                   method: method,
-                  headers: headers,
-                  agent: agent
+                  headers: headers
               };
 
               if (method === 'POST') {
@@ -48,14 +45,14 @@
 
               return await response.json();
           } catch (error) {
-              console.error('Error with proxy:', proxy);
+              console.error('Error');
           }
       }
 
       function generateBrowserId() {
         const rdm = crypto.randomUUID().slice(8);
         const browserId = `${id8}${rdm}`
-        return browserId;  
+        return browserId;
       }
 
       async function loadBrowserIds() {
@@ -63,7 +60,7 @@
               const data = await fs.readFile(browserIdFilePath, 'utf-8');
               return JSON.parse(data);
           } catch (error) {
-              return {};  
+              return {};
           }
       }
 
@@ -80,18 +77,18 @@
           const browserIds = await loadBrowserIds();
           if (browserIds[proxy]) {
               console.log(`Using existing browser_id for proxy ${proxy}`);
-              return browserIds[proxy];  
+              return browserIds[proxy];
           } else {
               const newBrowserId = generateBrowserId();
               browserIds[proxy] = newBrowserId;  // Save new browser_id for the proxy
-              await saveBrowserIds(browserIds);  
+              await saveBrowserIds(browserIds);
               console.log(`Generated new browser_id for proxy ${proxy}: ${newBrowserId}`);
               return newBrowserId;
           }
       }
 
       function getCurrentTimestamp() {
-          return Math.floor(Date.now() / 1000);  
+          return Math.floor(Date.now() / 1000);
       }
 
       async function pingProxy(proxy, browser_id, uid) {
@@ -100,17 +97,17 @@
 
           while (true) {
               try {
-                  const pingResponse = await coday('https://api.aigaea.net/api/network/ping', 'POST', pingPayload, proxy);
-                  await coday('https://api.aigaea.net/api/network/ip', 'GET', {}, proxy)
+                  const pingResponse = await coday('https://api.aigaea.net/api/network/ping', 'POST', pingPayload);
+                  await coday('https://api.aigaea.net/api/network/ip', 'GET', {})
                   console.log(`Ping successful for proxy ${proxy}:`, pingResponse);
 
-                  // Check the score 
+                  // Check the score
                   if (pingResponse.data && pingResponse.data.score < 50) {
                       console.log(`Score below 50 for proxy ${proxy}, re-authenticating...`);
 
                       // Re-authenticate and restart pinging with a new browser_id
                       await handleAuthAndPing(proxy);
-                      break; 
+                      break;
                   }
               } catch (error) {
                   console.error(`Ping failed for proxy ${proxy}:`, error);
@@ -121,14 +118,14 @@
 
       async function handleAuthAndPing(proxy) {
           const payload = {};
-          const authResponse = await coday("https://api.aigaea.net/api/auth/session", 'POST', payload, proxy);
-          
+          const authResponse = await coday("https://api.aigaea.net/api/auth/session", 'POST', payload);
+
           if (authResponse && authResponse.data) {
               const uid = authResponse.data.uid;
               const browser_id = await getBrowserId(proxy);  // Get or generate a unique browser_id for this proxy
               console.log(`Authenticated for proxy ${proxy} with uid ${uid} and browser_id ${browser_id}`);
 
-              // Start pinging 
+              // Start pinging
               pingProxy(proxy, browser_id, uid);
           } else {
               console.error(`Authentication failed for proxy ${proxy}`);
